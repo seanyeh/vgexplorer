@@ -5,7 +5,7 @@ import sys
 
 from pathlib import Path
 
-from PyQt5.QtWidgets import QApplication, QFileSystemModel, QLineEdit, QInputDialog, QTreeView, QWidget, QVBoxLayout, QMenu
+from PyQt5.QtWidgets import QApplication, QFileSystemModel, QMessageBox, QLineEdit, QInputDialog, QTreeView, QWidget, QVBoxLayout, QMenu
 
 from PyQt5 import QtCore
 from PyQt5.QtCore import QDir, QPoint
@@ -64,13 +64,15 @@ class VGExplorer(QWidget):
 
     def show_menu(self, clickPos):
         index = self.tree.indexAt(clickPos)
-        selectedPath = self.tree.model().filePath(index)
+        selected_path = self.tree.model().filePath(index)
+        enclosing_dir = self.find_enclosing_dir(selected_path)
 
         menu = QMenu(self)
         openAction = menu.addAction("Open")
         newAction = menu.addAction("New File")
         copyAction = menu.addAction("Copy")
         pasteAction = menu.addAction("Paste")
+        renameAction = menu.addAction("Rename")
         fileInfo = menu.addAction("Properties")
 
         menuPos = QPoint(clickPos.x() + 15, clickPos.y() + 15)
@@ -80,10 +82,26 @@ class VGExplorer(QWidget):
             self.open_file(index)
 
         elif action == newAction:
-            enclosing_dir = self.find_enclosing_dir(selectedPath)
             path = self.get_dialog_str("New File", "Enter name for new file:")
             if path:
                 self.touch(os.path.join(enclosing_dir, path))
+
+        elif action == renameAction:
+            path = self.get_dialog_str("Rename File", "Enter new name:")
+
+            # Naive validation
+            if "/" in path:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Filename cannot contain '/'")
+                msg.setWindowTitle("Error")
+                msg.exec_()
+                return
+
+            new_path = os.path.join(enclosing_dir, path)
+
+            self.move(selected_path, new_path)
+
 
     def get_dialog_str(self, title, message):
         text, confirm = QInputDialog.getText(self, title, message, QLineEdit.Normal, "")
@@ -94,6 +112,9 @@ class VGExplorer(QWidget):
     '''
     Filesystem and OS Functions
     '''
+
+    def move(self, old_path, new_path):
+        os.rename(old_path, new_path)
 
     def touch(self, path):
         subprocess.run(["touch", path])
