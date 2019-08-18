@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -9,7 +10,7 @@ from pathlib import Path
 from PyQt5.QtWidgets import QApplication, QFileSystemModel, QMessageBox, QLineEdit, QInputDialog, QTreeView, QWidget, QVBoxLayout, QMenu
 
 from PyQt5 import QtCore
-from PyQt5.QtCore import QDir, QPoint
+from PyQt5.QtCore import QDir, QPoint, QUrl, QMimeData
 
 
 class Config:
@@ -21,8 +22,10 @@ class Config:
         self.server_name = args.server_name
 
 class VGExplorer(QWidget):
-    def __init__(self, config):
+    def __init__(self, app, config):
         super().__init__()
+
+        self.clipboard = app.clipboard()
 
         self.config = config
         self.setWindowTitle(config.server_name)
@@ -111,6 +114,22 @@ class VGExplorer(QWidget):
 
             self.move(selected_path, new_path)
 
+        elif action == copyAction:
+            mime_data = QMimeData()
+
+            # TODO: support multiple selections
+            mime_data.setUrls([QUrl(f"file:///{selected_path}")])
+            self.clipboard.setMimeData(mime_data)
+
+        elif action == pasteAction:
+            mime_data = self.clipboard.mimeData()
+            if not mime_data:
+                return
+
+            if mime_data.hasUrls():
+                for src_url in mime_data.urls():
+                    self.copy(src_url.path(), enclosing_dir)
+
 
     def get_dialog_str(self, title, message):
         text, confirm = QInputDialog.getText(self, title, message, QLineEdit.Normal, "")
@@ -121,6 +140,18 @@ class VGExplorer(QWidget):
     '''
     Filesystem and OS Functions
     '''
+
+    def copy(self, src_file, dest_dir):
+        src_basename = os.path.basename(src_file)
+        dest_file = os.path.join(dest_dir, src_basename)
+
+        # First confirm file doesn't already exist
+        if os.path.exists(dest_file):
+            print(f"Destination path '{dest_file}' already exists, skipping")
+            return
+
+        print(f"Pasting {src_file} -> {dest_file}")
+        shutil.copy2(src_file, dest_file)
 
     def move(self, old_path, new_path):
         os.rename(old_path, new_path)
@@ -171,7 +202,7 @@ def main():
     config = Config(args)
 
     app = QApplication([])
-    vgexplorer = VGExplorer(config)
+    vgexplorer = VGExplorer(app, config)
     sys.exit(app.exec_())
 
 
