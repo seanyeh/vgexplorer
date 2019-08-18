@@ -118,7 +118,7 @@ class VGExplorer(QWidget):
             mime_data = QMimeData()
 
             # TODO: support multiple selections
-            mime_data.setUrls([QUrl(f"file:///{selected_path}")])
+            mime_data.setUrls([QUrl(Path(selected_path).as_uri())])
             self.clipboard.setMimeData(mime_data)
 
         elif action == pasteAction:
