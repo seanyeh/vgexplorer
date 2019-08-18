@@ -1,3 +1,4 @@
+import argparse
 import os
 import signal
 import subprocess
@@ -10,12 +11,21 @@ from PyQt5.QtWidgets import QApplication, QFileSystemModel, QMessageBox, QLineEd
 from PyQt5 import QtCore
 from PyQt5.QtCore import QDir, QPoint
 
-class VGExplorer(QWidget):
-    def __init__(self, server_name):
-        super().__init__()
-        self.server_name = server_name
 
-        self.setWindowTitle(server_name)
+class Config:
+    def __init__(self, args):
+        self.vim = "vim"
+        if args.neovim:
+            self.vim = "nvr"
+
+        self.server_name = args.server_name
+
+class VGExplorer(QWidget):
+    def __init__(self, config):
+        super().__init__()
+
+        self.config = config
+        self.setWindowTitle(config.server_name)
 
         rootPath = self.get_cwd()
 
@@ -49,12 +59,11 @@ class VGExplorer(QWidget):
     def open_file(self, index):
         path = self.sender().model().filePath(index)
         if os.path.isfile(path):
-            subprocess.call(["vim", "--servername", self.server_name, "--remote", path])
+            subprocess.call([self.config.vim, "--servername", self.config.server_name, "--remote", path])
 
 
     def get_cwd(self):
-        print("server name: " + self.server_name)
-        path = subprocess.check_output(["vim", "--servername", self.server_name, "--remote-expr", "getcwd()"])
+        path = subprocess.check_output([self.config.vim, "--servername", self.config.server_name, "--remote-expr", "getcwd()"])
         return path.decode("utf-8").strip()
 
 
@@ -150,8 +159,19 @@ class VGExplorer(QWidget):
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--neovim", action="store_true",
+            help="Use neovim instead of vim")
+
+    parser.add_argument("server_name", metavar="SERVER_NAME",
+            help="Config file")
+
+    args = parser.parse_args()
+
+    config = Config(args)
+
     app = QApplication([])
-    asdf = VGExplorer(sys.argv[1])
+    vgexplorer = VGExplorer(config)
     sys.exit(app.exec_())
 
 
