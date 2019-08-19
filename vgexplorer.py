@@ -180,22 +180,6 @@ class VGExplorer(QWidget):
         if os.path.isfile(path):
             return str(Path(path).parent)
 
-    def save_clipboard(self, text):
-        if sys.platform == "linux" or sys.platform == "linux2":
-            subprocess.run(["xclip", "-sel", "clipboard"], input=text, encoding="utf-8")
-        elif sys.platform == "darwin":
-            subprocess.run(["pbcopy"], input=text, encoding="utf-8")
-
-    def get_clipboard(self):
-        if sys.platform == "linux" or sys.platform == "linux2":
-            output = subprocess.check_output(["xclip", "-out", "-sel", "clipboard"])
-        elif sys.platform == "darwin":
-            output = subprocess.check_output.run(["pbpaste"])
-        else:
-            return None
-
-        return output.decode("utf-8")
-
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
