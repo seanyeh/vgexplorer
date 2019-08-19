@@ -81,7 +81,8 @@ class VGExplorer(QWidget):
 
         menu = QMenu(self)
         openAction = menu.addAction("Open")
-        newAction = menu.addAction("New File")
+        newFolderAction = menu.addAction("New Folder")
+        newFileAction = menu.addAction("New File")
         copyAction = menu.addAction("Copy")
         pasteAction = menu.addAction("Paste")
         renameAction = menu.addAction("Rename")
@@ -93,7 +94,12 @@ class VGExplorer(QWidget):
         if action == openAction:
             self.open_file(index)
 
-        elif action == newAction:
+        elif action == newFolderAction:
+            path = self.get_dialog_str("New Folder", "Enter name for new folder:")
+            if path:
+                self.mkdir(os.path.join(enclosing_dir, path))
+
+        elif action == newFileAction:
             path = self.get_dialog_str("New File", "Enter name for new file:")
             if path:
                 self.touch(os.path.join(enclosing_dir, path))
@@ -155,6 +161,10 @@ class VGExplorer(QWidget):
 
     def move(self, old_path, new_path):
         os.rename(old_path, new_path)
+
+    def mkdir(self, path):
+        if not os.path.exists(path):
+            os.mkdir(path)
 
     def touch(self, path):
         subprocess.run(["touch", path])
