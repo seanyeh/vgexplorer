@@ -189,7 +189,7 @@ def main():
             help="Use neovim instead of vim")
 
     parser.add_argument("server_name", metavar="SERVER_NAME",
-            help="Config file")
+            help="Server name")
 
     args = parser.parse_args()
 
