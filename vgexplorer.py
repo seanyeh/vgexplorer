@@ -9,9 +9,10 @@ import threading
 
 from pathlib import Path
 
-from PyQt5.QtWidgets import QApplication, QFileSystemModel, QMessageBox, QLineEdit, QInputDialog, QTreeView, QWidget, QVBoxLayout, QMenu
+from PyQt5.QtWidgets import QApplication, QFileSystemModel, QMessageBox, QLineEdit, QInputDialog, QShortcut, QTreeView, QWidget, QVBoxLayout, QMenu
 
 from PyQt5 import QtCore
+from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import QDir, QPoint, QUrl, QMimeData
 
 SERVER_PREFIX="/tmp/vgexplorer-"
@@ -80,6 +81,11 @@ class VGExplorer(QWidget):
         windowLayout = QVBoxLayout()
         windowLayout.addWidget(self.tree)
         self.setLayout(windowLayout)
+
+        # Ctrl-T hides the window
+        # TODO: make shortcut customizable
+        self.shortcut = QShortcut(QKeySequence("Ctrl+T"), self)
+        self.shortcut.activated.connect(self.hide)
 
         self.show()
 
