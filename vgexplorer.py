@@ -1,4 +1,5 @@
 import argparse
+import configparser
 import os
 import shutil
 import signal
@@ -38,13 +39,39 @@ class Daemon(threading.Thread):
 
 
 class Config:
-    def __init__(self, args):
-        self.vim = "vim"
-        if args.neovim:
-            self.vim = "nvr"
+    DEFAULT_CONFIGS = {
+        "vim": "vim",
+        "hidden": False,
+        "toggle_key": "Ctrl+T",
+        "bookmarks": [],
+        "server_name": None
+    }
 
-        self.is_hidden = False
-        self.server_name = args.server_name
+    def __init__(self, args):
+        config = Config.DEFAULT_CONFIGS
+
+        # Load settings from CLI flags
+        if args.neovim:
+            config["vim"] = "nvr"
+
+        if args.server_name:
+            config["server_name"] = args.server_name
+
+        # Load settings from config
+        config_parser = configparser.ConfigParser()
+        if args.config_file:
+            # TODO: clean up ugly nesting
+            config_parser.read(args.config_file)
+            if "General" in config_parser:
+                config_general_values = config_parser["General"]
+
+                for key in config:
+                    if key in config_general_values:
+                        config[key] = config_general_values[key]
+
+        # Set attributes
+        for key, value in config.items():
+            setattr(self, key, value)
 
 
 class VGExplorer(QWidget):
@@ -82,12 +109,12 @@ class VGExplorer(QWidget):
         windowLayout.addWidget(self.tree)
         self.setLayout(windowLayout)
 
-        # Ctrl-T hides the window
-        # TODO: make shortcut customizable
-        self.shortcut = QShortcut(QKeySequence("Ctrl+T"), self)
+        # Shortcut for hide
+        self.shortcut = QShortcut(QKeySequence(config.toggle_key), self)
         self.shortcut.activated.connect(self.hide)
 
-        self.show()
+        if not config.hidden:
+            self.show()
 
     def toggle_show(self):
         if self.isHidden():
@@ -234,16 +261,24 @@ def main():
     parser.add_argument("--toggle", action="store_true",
             help="Toggle window")
 
-    parser.add_argument("server_name", metavar="SERVER_NAME",
+    parser.add_argument("--server-name", "-s",
             help="Server name")
 
-    args = parser.parse_args()
+    parser.add_argument("config_file", metavar="CONFIG_FILE", nargs="?",
+            help="Config file")
 
+
+    args = parser.parse_args()
     config = Config(args)
+
+    if not config.server_name:
+        print("You must specify a server name")
+        sys.exit(1)
 
     if args.toggle:
         run_toggle(args.server_name)
         sys.exit(0)
+
 
     app = QApplication([])
 
