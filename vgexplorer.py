@@ -2,8 +2,10 @@ import argparse
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
+import threading
 
 from pathlib import Path
 
@@ -12,6 +14,27 @@ from PyQt5.QtWidgets import QApplication, QFileSystemModel, QMessageBox, QLineEd
 from PyQt5 import QtCore
 from PyQt5.QtCore import QDir, QPoint, QUrl, QMimeData
 
+SERVER_PREFIX="/tmp/vgexplorer-"
+
+class Daemon(threading.Thread):
+    def __init__(self, server_name, main):
+        threading.Thread.__init__(self)
+        self.main = main
+        self.socket_name = f"{SERVER_PREFIX}{server_name}"
+
+    def run(self):
+        if os.path.exists(self.socket_name):
+            # TODO: option for confirmation dialog?
+            os.unlink(self.socket_name)
+
+        self.server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        self.server.bind(self.socket_name)
+
+        while True:
+            data = self.server.recv(1024)
+            if data.decode("utf-8") == "toggle":
+                self.main.toggle_show()
+
 
 class Config:
     def __init__(self, args):
@@ -19,7 +42,9 @@ class Config:
         if args.neovim:
             self.vim = "nvr"
 
+        self.is_hidden = False
         self.server_name = args.server_name
+
 
 class VGExplorer(QWidget):
     def __init__(self, app, config):
@@ -57,6 +82,12 @@ class VGExplorer(QWidget):
         self.setLayout(windowLayout)
 
         self.show()
+
+    def toggle_show(self):
+        if self.isHidden():
+            self.show()
+        else:
+            self.hide()
 
 
     def open_file(self, index):
@@ -181,12 +212,21 @@ class VGExplorer(QWidget):
             return str(Path(path).parent)
 
 
+def run_toggle(server_name):
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    client.connect(f"{SERVER_PREFIX}{server_name}")
+    client.send("toggle".encode("utf-8"))
+
+
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--neovim", action="store_true",
             help="Use neovim instead of vim")
+
+    parser.add_argument("--toggle", action="store_true",
+            help="Toggle window")
 
     parser.add_argument("server_name", metavar="SERVER_NAME",
             help="Server name")
@@ -195,8 +235,17 @@ def main():
 
     config = Config(args)
 
+    if args.toggle:
+        run_toggle(args.server_name)
+        sys.exit(0)
+
     app = QApplication([])
+
     vgexplorer = VGExplorer(app, config)
+
+    daemon = Daemon(args.server_name, vgexplorer)
+    daemon.start()
+
     sys.exit(app.exec_())
 
 
